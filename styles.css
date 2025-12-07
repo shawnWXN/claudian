@@ -827,7 +827,6 @@
 }
 
 .claudian-model-dropdown {
-  display: none;
   position: absolute;
   bottom: 100%;
   left: 0;
@@ -839,25 +838,33 @@
   z-index: 1000;
   min-width: 100px;
   overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 
-.claudian-model-dropdown.visible {
-  display: block;
+.claudian-model-selector:hover .claudian-model-dropdown {
+  opacity: 1;
+  visibility: visible;
 }
 
 .claudian-model-option {
-  padding: 8px 12px;
+  padding: 3px 8px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--text-normal);
-  transition: background 0.1s ease;
+  color: var(--text-muted);
+  border-radius: 3px;
+  transition: background 0.1s ease, color 0.1s ease;
+  white-space: nowrap;
 }
 
 .claudian-model-option:hover {
   background: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
 .claudian-model-option.selected {
+  background: rgba(217, 119, 87, 0.15);
   color: #D97757;
   font-weight: 500;
 }

@@ -1456,24 +1456,13 @@ export class ClaudianView extends ItemView {
   private createModelSelector(parentEl: HTMLElement) {
     const container = parentEl.createDiv({ cls: 'claudian-model-selector' });
 
-    // Current model button
+    // Current model button (display only, dropdown shows on hover via CSS)
     this.modelSelectorEl = container.createDiv({ cls: 'claudian-model-btn' });
     this.updateModelDisplay();
 
-    // Dropdown menu
+    // Dropdown menu (shown on hover via CSS)
     this.modelDropdownEl = container.createDiv({ cls: 'claudian-model-dropdown' });
     this.renderModelOptions();
-
-    // Toggle dropdown on click
-    this.modelSelectorEl.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.toggleModelDropdown();
-    });
-
-    // Close dropdown when clicking outside
-    this.registerDomEvent(document, 'click', () => {
-      this.modelDropdownEl?.removeClass('visible');
-    });
   }
 
   private updateModelDisplay() {
@@ -1508,17 +1497,6 @@ export class ClaudianView extends ItemView {
     }
   }
 
-  private toggleModelDropdown() {
-    if (!this.modelDropdownEl) return;
-    const isVisible = this.modelDropdownEl.hasClass('visible');
-    if (isVisible) {
-      this.modelDropdownEl.removeClass('visible');
-    } else {
-      this.renderModelOptions(); // Refresh selection state
-      this.modelDropdownEl.addClass('visible');
-    }
-  }
-
   private async selectModel(model: ClaudeModel) {
     this.plugin.settings.model = model;
     // Update thinking budget to default for the selected model
@@ -1526,7 +1504,7 @@ export class ClaudianView extends ItemView {
     await this.plugin.saveSettings();
     this.updateModelDisplay();
     this.updateThinkingBudgetDisplay();
-    this.modelDropdownEl?.removeClass('visible');
+    this.renderModelOptions(); // Refresh selection state
   }
 
   // ============================================
