@@ -3,8 +3,9 @@ import * as path from 'path';
 import * as os from 'os';
 import { query, type Options } from '@anthropic-ai/claude-agent-sdk';
 import type ClaudianPlugin from './main';
-import { StreamChunk, ChatMessage, ToolCallInfo } from './types';
+import { StreamChunk, ChatMessage, ToolCallInfo, SDKMessage } from './types';
 import { SYSTEM_PROMPT } from './systemPrompt';
+import { getVaultPath } from './utils';
 
 export class ClaudianService {
   private plugin: ClaudianPlugin;
@@ -46,7 +47,7 @@ export class ClaudianService {
    */
   async *query(prompt: string, conversationHistory?: ChatMessage[]): AsyncGenerator<StreamChunk> {
     // Get vault path
-    const vaultPath = this.getVaultPath();
+    const vaultPath = getVaultPath(this.plugin.app);
     if (!vaultPath) {
       yield { type: 'error', content: 'Could not determine vault path' };
       return;
@@ -75,7 +76,10 @@ export class ClaudianService {
         // Rebuild context from history
         const historyContext = this.buildContextFromHistory(conversationHistory);
         const lastUserMessage = this.getLastUserMessage(conversationHistory);
-        const shouldAppendPrompt = !lastUserMessage || lastUserMessage.content.trim() !== prompt.trim();
+        // Strip context prefix before comparison to avoid false mismatch
+        // (prompt may have "Context files: [...]\n\n" prefix, but stored content doesn't)
+        const actualPrompt = prompt.replace(/^Context files: \[.*?\]\n\n/, '');
+        const shouldAppendPrompt = !lastUserMessage || lastUserMessage.content.trim() !== actualPrompt.trim();
         const fullPrompt = historyContext
           ? shouldAppendPrompt
             ? `${historyContext}\n\nUser: ${prompt}`
@@ -146,13 +150,16 @@ export class ClaudianService {
 
   /**
    * Check if an error is a session expiration error
+   * Only matches session-specific errors, not general "not found" or "invalid" errors
    */
   private isSessionExpiredError(error: unknown): boolean {
     const msg = error instanceof Error ? error.message.toLowerCase() : '';
-    return msg.includes('session') ||
-           msg.includes('expired') ||
-           msg.includes('not found') ||
-           msg.includes('invalid');
+    return msg.includes('session expired') ||
+           msg.includes('session not found') ||
+           msg.includes('invalid session') ||
+           msg.includes('session invalid') ||
+           (msg.includes('session') && msg.includes('expired')) ||
+           (msg.includes('resume') && (msg.includes('failed') || msg.includes('error')));
   }
 
   /**
@@ -264,7 +271,7 @@ export class ClaudianService {
    * - 'stream_event' - streaming deltas
    * - 'result' - final result
    */
-  private *transformSDKMessage(message: any): Generator<StreamChunk> {
+  private *transformSDKMessage(message: SDKMessage): Generator<StreamChunk> {
     switch (message.type) {
       case 'system':
         // Capture session ID from init message
@@ -283,7 +290,7 @@ export class ClaudianService {
             } else if (block.type === 'tool_use') {
               yield {
                 type: 'tool_use',
-                id: block.id || `tool-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                id: block.id || `tool-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
                 name: block.name,
                 input: block.input || {},
               };
@@ -370,17 +377,6 @@ export class ClaudianService {
         return command.toLowerCase().includes(pattern.toLowerCase());
       }
     });
-  }
-
-  /**
-   * Get the vault's filesystem path
-   */
-  private getVaultPath(): string | null {
-    const adapter = this.plugin.app.vault.adapter;
-    if ('basePath' in adapter) {
-      return (adapter as any).basePath;
-    }
-    return null;
   }
 
   /**

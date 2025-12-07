@@ -13,6 +13,7 @@ An Obsidian plugin that embeds Claude Code as a sidebar chat interface. Your vau
 - **Chat history persistence**: Conversations saved across sessions with easy switching
 - **Session resume**: Continue previous conversations with full context
 - **Safety blocklist**: Optionally block dangerous commands
+- **Cancel streaming**: Press Escape to stop a response mid-stream
 
 ## Requirements
 
@@ -99,7 +100,8 @@ src/
 ├── ClaudianService.ts # Claude Agent SDK wrapper
 ├── ClaudianSettings.ts # Settings tab
 ├── systemPrompt.ts    # System prompt for Claude
-└── types.ts           # Type definitions
+├── types.ts           # Type definitions
+└── utils.ts           # Utility functions
 ```
 
 ## Roadmap

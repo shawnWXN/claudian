@@ -254,15 +254,6 @@
   text-align: left;
 }
 
-.claudian-message-system {
-  background: var(--background-primary-alt);
-  color: var(--text-muted);
-  font-size: 12px;
-  text-align: center;
-  align-self: center;
-  padding: 6px 12px;
-}
-
 /* Message content */
 .claudian-message-content {
   line-height: 1.5;
@@ -632,20 +623,6 @@
 
 .claudian-input::placeholder {
   color: var(--text-muted);
-}
-
-.claudian-buttons {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-  gap: 8px;
-}
-
-.claudian-send-btn {
-  padding: 6px 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
 }
 
 /* Settings page */

@@ -32,6 +32,9 @@ export class ClaudianView extends ItemView {
   private filteredFiles: TFile[] = [];
   private fileIndicatorEl: HTMLElement | null = null;
   private inputContainerEl: HTMLElement | null = null;
+  private cachedMarkdownFiles: TFile[] = [];
+  private filesCacheDirty = true;
+  private cancelRequested = false;
 
   private static readonly FLAVOR_TEXTS = [
     'Thinking...',
@@ -118,6 +121,12 @@ export class ClaudianView extends ItemView {
       this.historyDropdown?.removeClass('visible');
     });
 
+    // Keep cached file list fresh
+    this.registerEvent(this.plugin.app.vault.on('create', () => this.markFilesCacheDirty()));
+    this.registerEvent(this.plugin.app.vault.on('delete', () => this.markFilesCacheDirty()));
+    this.registerEvent(this.plugin.app.vault.on('rename', () => this.markFilesCacheDirty()));
+    this.registerEvent(this.plugin.app.vault.on('modify', () => this.markFilesCacheDirty()));
+
     // New conversation button
     const newBtn = headerActions.createDiv({ cls: 'claudian-header-btn' });
     setIcon(newBtn, 'plus');
@@ -167,6 +176,12 @@ export class ClaudianView extends ItemView {
         }
       }
 
+      if (e.key === 'Escape' && this.isStreaming) {
+        e.preventDefault();
+        this.cancelStreaming();
+        return;
+      }
+
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         this.sendMessage();
@@ -211,6 +226,7 @@ export class ClaudianView extends ItemView {
 
     this.inputEl.value = '';
     this.isStreaming = true;
+    this.cancelRequested = false;
 
     // Mark session as started after first query
     this.sessionStarted = true;
@@ -278,6 +294,9 @@ export class ClaudianView extends ItemView {
       // Pass conversation history for session expiration recovery
       // Use promptToSend which includes context files prefix
       for await (const chunk of this.plugin.agentService.query(promptToSend, this.messages)) {
+        if (this.cancelRequested) {
+          break;
+        }
         await this.handleStreamChunk(chunk, assistantMsg);
       }
     } catch (error) {
@@ -286,6 +305,7 @@ export class ClaudianView extends ItemView {
     } finally {
       this.hideThinkingIndicator();
       this.isStreaming = false;
+      this.cancelRequested = false;
       this.currentContentEl = null;
 
       // Finalize any remaining text block
@@ -314,6 +334,15 @@ export class ClaudianView extends ItemView {
       this.thinkingEl.remove();
       this.thinkingEl = null;
     }
+  }
+
+  private cancelStreaming() {
+    if (!this.isStreaming) {
+      return;
+    }
+    this.cancelRequested = true;
+    this.plugin.agentService.cancel();
+    this.hideThinkingIndicator();
   }
 
   private async handleStreamChunk(
@@ -426,13 +455,6 @@ export class ClaudianView extends ItemView {
 
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
     return msgEl;
-  }
-
-  private addSystemMessage(content: string) {
-    const msgEl = this.messagesEl.createDiv({
-      cls: 'claudian-message claudian-message-system',
-    });
-    msgEl.setText(content);
   }
 
   private async renderContent(el: HTMLElement, markdown: string) {
@@ -718,11 +740,7 @@ export class ClaudianView extends ItemView {
     this.messagesEl.empty();
 
     for (const msg of this.messages) {
-      if (msg.role === 'system') {
-        this.addSystemMessage(msg.content);
-      } else {
-        this.renderStoredMessage(msg);
-      }
+      this.renderStoredMessage(msg);
     }
 
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
@@ -1088,8 +1106,8 @@ export class ClaudianView extends ItemView {
    * Show the mention dropdown with filtered files
    */
   private showMentionDropdown(searchText: string) {
-    // Get all markdown files
-    const allFiles = this.plugin.app.vault.getMarkdownFiles();
+    // Get all markdown files (cached)
+    const allFiles = this.getCachedMarkdownFiles();
 
     // Filter by search text
     const searchLower = searchText.toLowerCase();
@@ -1112,6 +1130,18 @@ export class ClaudianView extends ItemView {
 
     this.selectedMentionIndex = 0;
     this.renderMentionDropdown();
+  }
+
+  private getCachedMarkdownFiles(): TFile[] {
+    if (this.filesCacheDirty || this.cachedMarkdownFiles.length === 0) {
+      this.cachedMarkdownFiles = this.plugin.app.vault.getMarkdownFiles();
+      this.filesCacheDirty = false;
+    }
+    return this.cachedMarkdownFiles;
+  }
+
+  private markFilesCacheDirty() {
+    this.filesCacheDirty = true;
   }
 
   /**
@@ -1214,6 +1244,6 @@ export class ClaudianView extends ItemView {
   }
 
   private generateId(): string {
-    return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 }

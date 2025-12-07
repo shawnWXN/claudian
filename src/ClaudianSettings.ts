@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type ClaudianPlugin from './main';
+import { getVaultPath } from './utils';
 
 export class ClaudianSettingTab extends PluginSettingTab {
   plugin: ClaudianPlugin;
@@ -71,20 +72,12 @@ export class ClaudianSettingTab extends PluginSettingTab {
       text: 'This plugin uses the Claude Agent SDK to interact with Claude.',
     });
 
-    const vaultPath = this.getVaultPath();
+    const vaultPath = getVaultPath(this.app);
     if (vaultPath) {
       infoDiv.createEl('p', {
         text: `Vault path: ${vaultPath}`,
         cls: 'claudian-vault-path',
       });
     }
-  }
-
-  private getVaultPath(): string | null {
-    const adapter = this.app.vault.adapter;
-    if ('basePath' in adapter) {
-      return (adapter as any).basePath;
-    }
-    return null;
   }
 }

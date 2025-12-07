@@ -51,7 +51,7 @@ export type ContentBlock =
 // Message types for the chat UI
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant';
   content: string;
   timestamp: number;
   toolCalls?: ToolCallInfo[];
@@ -79,3 +79,39 @@ export type StreamChunk =
   | { type: 'error'; content: string }
   | { type: 'blocked'; content: string }
   | { type: 'done' };
+
+// SDK Message Types (for type safety in message handling)
+export interface SDKContentBlock {
+  type: 'text' | 'tool_use' | 'tool_result';
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+  tool_use_id?: string;
+  content?: string | unknown;
+  is_error?: boolean;
+}
+
+export interface SDKMessageContent {
+  content?: SDKContentBlock[];
+}
+
+export interface SDKStreamEvent {
+  type: 'content_block_start' | 'content_block_delta';
+  content_block?: SDKContentBlock;
+  delta?: {
+    type: 'text_delta';
+    text?: string;
+  };
+}
+
+export interface SDKMessage {
+  type: 'system' | 'assistant' | 'user' | 'stream_event' | 'result' | 'error';
+  subtype?: 'init' | string;
+  session_id?: string;
+  message?: SDKMessageContent;
+  tool_use_result?: string | unknown;
+  parent_tool_use_id?: string;
+  event?: SDKStreamEvent;
+  error?: string;
+}

@@ -15,7 +15,8 @@ src/
 ├── ClaudianService.ts # Claude Agent SDK wrapper, transforms SDK messages
 ├── ClaudianSettings.ts # Settings tab
 ├── systemPrompt.ts    # System prompt for Claude agent
-└── types.ts           # Shared type definitions (StreamChunk, ToolCallInfo, etc.)
+├── types.ts           # Shared type definitions (StreamChunk, ToolCallInfo, etc.)
+└── utils.ts           # Utility functions (getVaultPath)
 ```
 
 ## Key Technologies
@@ -154,7 +155,6 @@ interface ClaudianSettings {
 - `.claudian-message` - Individual message
 - `.claudian-message-user` - User message styling
 - `.claudian-message-assistant` - Assistant message styling
-- `.claudian-message-system` - System message styling
 - `.claudian-message-content` - Message content wrapper
 - `.claudian-text-block` - Text block within message (maintains stream order)
 
