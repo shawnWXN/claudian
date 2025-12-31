@@ -67,7 +67,7 @@ export class ConversationController {
   // Conversation Lifecycle
   // ============================================
 
-  /** Creates a new conversation. */
+  /** Creates a new conversation, or switches to an existing empty one. */
   async createNew(): Promise<void> {
     const { plugin, state, asyncSubagentManager } = this.deps;
     if (state.isStreaming) return;
@@ -79,7 +79,11 @@ export class ConversationController {
     asyncSubagentManager.orphanAllActive();
     state.asyncSubagentStates.clear();
 
-    const conversation = await plugin.createConversation();
+    // Check for existing empty conversation to reuse
+    const emptyConv = plugin.findEmptyConversation();
+    const conversation = emptyConv
+      ? await plugin.switchConversation(emptyConv.id) ?? await plugin.createConversation()
+      : await plugin.createConversation();
 
     state.currentConversationId = conversation.id;
     state.clearMessages();

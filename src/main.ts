@@ -449,6 +449,11 @@ export default class ClaudianPlugin extends Plugin {
     return this.conversations.find(c => c.id === id) || null;
   }
 
+  /** Finds an existing empty conversation (no messages). */
+  findEmptyConversation(): Conversation | null {
+    return this.conversations.find(c => c.messages.length === 0) || null;
+  }
+
   /** Returns conversation metadata list for the history dropdown. */
   getConversationList(): ConversationMeta[] {
     return this.conversations.map(c => ({

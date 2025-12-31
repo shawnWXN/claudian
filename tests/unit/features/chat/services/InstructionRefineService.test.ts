@@ -95,9 +95,8 @@ describe('InstructionRefineService', () => {
       const options = getLastOptions();
       expect(options?.systemPrompt).toContain('EXISTING INSTRUCTIONS');
       expect(options?.systemPrompt).toContain(existing);
-      expect(options?.systemPrompt).toContain('ready-to-append');
-      expect(options?.systemPrompt).toContain('AS-IS');
-      expect(options?.systemPrompt).not.toContain('will be prefixed');
+      expect(options?.systemPrompt).toContain('Consider how it fits with existing instructions');
+      expect(options?.systemPrompt).toContain('Match the format of existing instructions');
     });
   });
 

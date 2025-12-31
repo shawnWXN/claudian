@@ -87,6 +87,7 @@ function createMockDeps(overrides: Partial<ConversationControllerDeps> = {}): Co
       getActiveConversation: jest.fn().mockReturnValue(null),
       getConversationById: jest.fn().mockReturnValue(null),
       getConversationList: jest.fn().mockReturnValue([]),
+      findEmptyConversation: jest.fn().mockReturnValue(null),
       updateConversation: jest.fn().mockResolvedValue(undefined),
       renameConversation: jest.fn().mockResolvedValue(undefined),
       agentService: {
@@ -172,6 +173,54 @@ describe('ConversationController - Queue Management', () => {
 
       expect(fileContextManager.resetForNewConversation).toHaveBeenCalled();
       expect(fileContextManager.autoAttachActiveFile).toHaveBeenCalled();
+    });
+
+    it('should switch to existing empty conversation instead of creating new one', async () => {
+      const emptyConv = {
+        id: 'empty-conv',
+        title: 'Empty Conversation',
+        messages: [],
+        sessionId: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      (deps.plugin.findEmptyConversation as jest.Mock).mockReturnValue(emptyConv);
+      (deps.plugin.switchConversation as jest.Mock).mockResolvedValue(emptyConv);
+
+      await controller.createNew();
+
+      expect(deps.plugin.findEmptyConversation).toHaveBeenCalled();
+      expect(deps.plugin.switchConversation).toHaveBeenCalledWith('empty-conv');
+      expect(deps.plugin.createConversation).not.toHaveBeenCalled();
+      expect(deps.state.currentConversationId).toBe('empty-conv');
+    });
+
+    it('should create new conversation if no empty conversation exists', async () => {
+      (deps.plugin.findEmptyConversation as jest.Mock).mockReturnValue(null);
+
+      await controller.createNew();
+
+      expect(deps.plugin.findEmptyConversation).toHaveBeenCalled();
+      expect(deps.plugin.createConversation).toHaveBeenCalled();
+      expect(deps.plugin.switchConversation).not.toHaveBeenCalled();
+    });
+
+    it('should fallback to createConversation if switchConversation fails', async () => {
+      const emptyConv = {
+        id: 'empty-conv',
+        title: 'Empty Conversation',
+        messages: [],
+        sessionId: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      (deps.plugin.findEmptyConversation as jest.Mock).mockReturnValue(emptyConv);
+      (deps.plugin.switchConversation as jest.Mock).mockResolvedValue(null);
+
+      await controller.createNew();
+
+      expect(deps.plugin.switchConversation).toHaveBeenCalledWith('empty-conv');
+      expect(deps.plugin.createConversation).toHaveBeenCalled();
     });
   });
 

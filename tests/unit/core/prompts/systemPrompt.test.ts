@@ -101,12 +101,8 @@ describe('systemPrompt', () => {
 
     it('should include read-only tool descriptions', () => {
       const prompt = getInlineEditSystemPrompt();
-      expect(prompt).toContain('Read:');
-      expect(prompt).toContain('Grep:');
-      expect(prompt).toContain('Glob:');
-      expect(prompt).toContain('LS:');
-      expect(prompt).toContain('WebSearch:');
-      expect(prompt).toContain('WebFetch:');
+      expect(prompt).toContain('Read, Grep, Glob, LS, WebSearch, WebFetch');
+      expect(prompt).toContain('read-only');
     });
 
     it('should include example scenarios', () => {
