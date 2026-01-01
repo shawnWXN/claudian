@@ -4,9 +4,9 @@
  * Plugin settings UI for hotkeys, customization, safety, and environment variables.
  */
 
+import * as fs from 'fs';
 import type { App } from 'obsidian';
 import { Notice, PluginSettingTab, Setting } from 'obsidian';
-import * as fs from 'fs';
 
 import { getCurrentPlatformKey } from '../../core/types';
 import { DEFAULT_CLAUDE_MODELS } from '../../core/types/models';
@@ -15,6 +15,54 @@ import { EnvSnippetManager, McpSettingsManager, SlashCommandSettings } from '../
 import { getModelsFromEnvironment, parseEnvironmentVariables } from '../../utils/env';
 import { expandHomePath } from '../../utils/path';
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
+
+/** Format a hotkey for display (e.g., "Cmd+Shift+E" on Mac, "Ctrl+Shift+E" on Windows). */
+function formatHotkey(hotkey: { modifiers: string[]; key: string }): string {
+  const isMac = navigator.platform.includes('Mac');
+  const modMap: Record<string, string> = isMac
+    ? { Mod: '⌘', Ctrl: '⌃', Alt: '⌥', Shift: '⇧', Meta: '⌘' }
+    : { Mod: 'Ctrl', Ctrl: 'Ctrl', Alt: 'Alt', Shift: 'Shift', Meta: 'Win' };
+
+  const mods = hotkey.modifiers.map((m) => modMap[m] || m);
+  const key = hotkey.key.length === 1 ? hotkey.key.toUpperCase() : hotkey.key;
+
+  return isMac ? [...mods, key].join('') : [...mods, key].join('+');
+}
+
+/** Open Obsidian's hotkey settings filtered to Claudian commands. */
+function openHotkeySettings(app: App): void {
+  const setting = (app as any).setting;
+  setting.open();
+  setting.openTabById('hotkeys');
+  // Slight delay to ensure the tab is loaded
+  setTimeout(() => {
+    const tab = setting.activeTab;
+    if (tab) {
+      // Handle both old and new Obsidian versions
+      const searchEl = tab.searchInputEl ?? tab.searchComponent?.inputEl;
+      if (searchEl) {
+        searchEl.value = 'Claudian';
+        tab.updateHotkeyVisibility?.();
+      }
+    }
+  }, 100);
+}
+
+/** Get the current hotkey string for a command, or null if not set. */
+function getHotkeyForCommand(app: App, commandId: string): string | null {
+  // Access Obsidian's internal hotkey manager
+  const hotkeyManager = (app as any).hotkeyManager;
+  if (!hotkeyManager) return null;
+
+  // Get custom hotkeys first, then fall back to defaults
+  const customHotkeys = hotkeyManager.customKeys?.[commandId];
+  const defaultHotkeys = hotkeyManager.defaultKeys?.[commandId];
+  const hotkeys = customHotkeys?.length > 0 ? customHotkeys : defaultHotkeys;
+
+  if (!hotkeys || hotkeys.length === 0) return null;
+
+  return hotkeys.map(formatHotkey).join(', ');
+}
 
 /** Plugin settings tab displayed in Obsidian's settings pane. */
 export class ClaudianSettingTab extends PluginSettingTab {
@@ -29,109 +77,6 @@ export class ClaudianSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass('claudian-settings');
-
-    // Hotkeys section
-    new Setting(containerEl).setName('Hotkeys').setHeading();
-
-    new Setting(containerEl)
-      .setName('Inline edit hotkey')
-      .setDesc('Configure the keyboard shortcut for inline editing selected text')
-      .addButton((button) =>
-        button
-          .setButtonText('Configure hotkey')
-          .onClick(() => {
-            // Open Obsidian's hotkey settings, filtered to our command
-            (this.app as any).setting.open();
-            (this.app as any).setting.openTabById('hotkeys');
-            // Slight delay to ensure the tab is loaded
-            setTimeout(() => {
-              const searchEl = document.querySelector('.hotkey-search-container input') as HTMLInputElement;
-              if (searchEl) {
-                searchEl.value = 'Claudian: Inline edit';
-                searchEl.dispatchEvent(new Event('input'));
-              }
-            }, 100);
-          })
-      );
-
-    new Setting(containerEl)
-      .setName('Open chat hotkey')
-      .setDesc('Configure the keyboard shortcut for opening the Claudian chat panel')
-      .addButton((button) =>
-        button
-          .setButtonText('Configure hotkey')
-          .onClick(() => {
-            (this.app as any).setting.open();
-            (this.app as any).setting.openTabById('hotkeys');
-            setTimeout(() => {
-              const searchEl = document.querySelector('.hotkey-search-container input') as HTMLInputElement;
-              if (searchEl) {
-                searchEl.value = 'Claudian: Open chat';
-                searchEl.dispatchEvent(new Event('input'));
-              }
-            }, 100);
-          })
-      );
-
-    // Keyboard Navigation section
-    new Setting(containerEl).setName('Keyboard Navigation').setHeading();
-
-    const navDesc = containerEl.createDiv({ cls: 'setting-item-description' });
-    navDesc.setText('Vim-style navigation: press Escape to focus chat panel, then use keys to scroll or focus input.');
-
-    new Setting(containerEl)
-      .setName('Vim-style navigation mappings')
-      .setDesc('One mapping per line. Format: "map <key> <action>" (actions: scrollUp, scrollDown, focusInput).')
-      .addTextArea((text) => {
-        let pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
-        let saveTimeout: number | null = null;
-
-        const commitValue = async (showError: boolean): Promise<void> => {
-          if (saveTimeout !== null) {
-            window.clearTimeout(saveTimeout);
-            saveTimeout = null;
-          }
-
-          const result = parseNavMappings(pendingValue);
-          if (!result.settings) {
-            if (showError) {
-              new Notice(`Invalid navigation mappings: ${result.error}`);
-              pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
-              text.setValue(pendingValue);
-            }
-            return;
-          }
-
-          this.plugin.settings.keyboardNavigation.scrollUpKey = result.settings.scrollUp;
-          this.plugin.settings.keyboardNavigation.scrollDownKey = result.settings.scrollDown;
-          this.plugin.settings.keyboardNavigation.focusInputKey = result.settings.focusInput;
-          await this.plugin.saveSettings();
-          pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
-          text.setValue(pendingValue);
-        };
-
-        const scheduleSave = (): void => {
-          if (saveTimeout !== null) {
-            window.clearTimeout(saveTimeout);
-          }
-          saveTimeout = window.setTimeout(() => {
-            void commitValue(false);
-          }, 500);
-        };
-
-        text
-          .setPlaceholder('map w scrollUp\nmap s scrollDown\nmap i focusInput')
-          .setValue(pendingValue)
-          .onChange((value) => {
-            pendingValue = value;
-            scheduleSave();
-          });
-
-        text.inputEl.rows = 3;
-        text.inputEl.addEventListener('blur', async () => {
-          await commitValue(true);
-        });
-      });
 
     // Customization section
     new Setting(containerEl).setName('Customization').setHeading();
@@ -236,7 +181,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
     if (this.plugin.settings.enableAutoTitleGeneration) {
       new Setting(containerEl)
         .setName('Title generation model')
-        .setDesc('Model used for auto-generating conversation titles. "Auto" uses ANTHROPIC_DEFAULT_HAIKU_MODEL or claude-haiku-4-5.')
+        .setDesc('Model used for auto-generating conversation titles.')
         .addDropdown((dropdown) => {
           // Add "Auto" option (empty string = use default logic)
           dropdown.addOption('', 'Auto (Haiku)');
@@ -258,6 +203,93 @@ export class ClaudianSettingTab extends PluginSettingTab {
             });
         });
     }
+
+    // Keyboard Navigation subsection
+    const navDesc = containerEl.createDiv({ cls: 'setting-item-description' });
+    navDesc.setText('Vim-style navigation: press Escape to focus chat panel, then use keys to scroll or focus input.');
+
+    new Setting(containerEl)
+      .setName('Vim-style navigation mappings')
+      .setDesc('One mapping per line. Format: "map <key> <action>" (actions: scrollUp, scrollDown, focusInput).')
+      .addTextArea((text) => {
+        let pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
+        let saveTimeout: number | null = null;
+
+        const commitValue = async (showError: boolean): Promise<void> => {
+          if (saveTimeout !== null) {
+            window.clearTimeout(saveTimeout);
+            saveTimeout = null;
+          }
+
+          const result = parseNavMappings(pendingValue);
+          if (!result.settings) {
+            if (showError) {
+              new Notice(`Invalid navigation mappings: ${result.error}`);
+              pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
+              text.setValue(pendingValue);
+            }
+            return;
+          }
+
+          this.plugin.settings.keyboardNavigation.scrollUpKey = result.settings.scrollUp;
+          this.plugin.settings.keyboardNavigation.scrollDownKey = result.settings.scrollDown;
+          this.plugin.settings.keyboardNavigation.focusInputKey = result.settings.focusInput;
+          await this.plugin.saveSettings();
+          pendingValue = buildNavMappingText(this.plugin.settings.keyboardNavigation);
+          text.setValue(pendingValue);
+        };
+
+        const scheduleSave = (): void => {
+          if (saveTimeout !== null) {
+            window.clearTimeout(saveTimeout);
+          }
+          saveTimeout = window.setTimeout(() => {
+            void commitValue(false);
+          }, 500);
+        };
+
+        text
+          .setPlaceholder('map w scrollUp\nmap s scrollDown\nmap i focusInput')
+          .setValue(pendingValue)
+          .onChange((value) => {
+            pendingValue = value;
+            scheduleSave();
+          });
+
+        text.inputEl.rows = 3;
+        text.inputEl.addEventListener('blur', async () => {
+          await commitValue(true);
+        });
+      });
+
+    // Hotkeys section
+    new Setting(containerEl).setName('Hotkeys').setHeading();
+
+    const inlineEditCommandId = 'claudian:inline-edit';
+    const inlineEditHotkey = getHotkeyForCommand(this.app, inlineEditCommandId);
+    new Setting(containerEl)
+      .setName('Inline edit hotkey')
+      .setDesc(inlineEditHotkey
+        ? `Current: ${inlineEditHotkey}`
+        : 'No hotkey set. Click to configure.')
+      .addButton((button) =>
+        button
+          .setButtonText(inlineEditHotkey ? 'Change' : 'Set hotkey')
+          .onClick(() => openHotkeySettings(this.app))
+      );
+
+    const openChatCommandId = 'claudian:open-chat';
+    const openChatHotkey = getHotkeyForCommand(this.app, openChatCommandId);
+    new Setting(containerEl)
+      .setName('Open chat hotkey')
+      .setDesc(openChatHotkey
+        ? `Current: ${openChatHotkey}`
+        : 'No hotkey set. Click to configure.')
+      .addButton((button) =>
+        button
+          .setButtonText(openChatHotkey ? 'Change' : 'Set hotkey')
+          .onClick(() => openHotkeySettings(this.app))
+      );
 
     // Slash Commands section
     new Setting(containerEl).setName('Slash Commands').setHeading();

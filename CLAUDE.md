@@ -198,6 +198,7 @@ interface ClaudianSettings {
     scrollDownKey: string;
     focusInputKey: string;
   };
+  claudeCliPath: string;             // Custom Claude CLI path (empty = auto-detect)
 }
 ```
 
