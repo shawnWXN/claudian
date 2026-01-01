@@ -1041,12 +1041,11 @@ ${content}
       await conversationController.save();
       // Clear plan file path to avoid reusing stale content on revise
       plugin.agentService.setCurrentPlanFilePath(null);
-      // Send feedback as a follow-up message
-      const feedback = result.feedback;
-      // Queue the feedback as a user message for the next turn
+      // Auto-send feedback as hidden message (indicator already shows it)
       const inputEl = this.deps.getInputEl();
-      inputEl.value = `Please revise the plan based on this feedback:\n\n${feedback}`;
-      return { decision: 'revise', feedback };
+      inputEl.value = result.feedback;
+      setTimeout(() => this.sendMessage({ hidden: true }), 100);
+      return { decision: 'revise', feedback: result.feedback };
     } else {
       // Cancel (Esc) - treat as normal interrupt, no indicator
       state.resetPlanModeState();

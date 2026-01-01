@@ -354,7 +354,9 @@ export class PlanApprovalPanel {
   /** Handle revise submission. */
   private handleReviseSubmit(): void {
     if (this.isDestroyed) return;
-    const feedback = this.reviseInputEl?.value.trim() || 'Please revise the plan.';
+    const feedback = this.reviseInputEl?.value.trim();
+    // Require actual feedback - don't submit empty
+    if (!feedback) return;
     this.destroy();
     this.onRevise(feedback);
   }
