@@ -381,7 +381,9 @@ export class ClaudianView extends ItemView {
 
     // Wire MCP service
     this.mcpServerSelector.setMcpService(this.plugin.mcpService);
-    this.fileContextManager.setOnMcpMentionChange((servers) => {
+
+    // Sync @-mentions to UI selector so icon glows when MCP is mentioned
+    this.fileContextManager?.setOnMcpMentionChange((servers) => {
       this.mcpServerSelector?.addMentionedServers(servers);
     });
 
