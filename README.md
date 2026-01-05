@@ -20,7 +20,7 @@ An Obsidian plugin that embeds Claude Agent (using Claude Agent SDK) as a sideba
 
 ## Requirements
 
-- [Claude Code CLI](https://code.claude.com/docs/en/overview) installed (I used Native Installation but if you installed it through `npm` and receive errors, please provide info about platform, claude's path and error message in GitHub issues, I will try to fix it!)
+- [Claude Code CLI](https://code.claude.com/docs/en/overview) installed
 - Obsidian v1.8.9+
 - Claude subscription/API or Custom model provider that supports anthropic API format (Openrouter, Kimi, GLM, DeepSeek, etc.)
 - Desktop only (macOS, Linux, Windows)
@@ -130,7 +130,42 @@ Use it like Claude Code—read, write, edit, search files in your vault.
 - **Command blocklist** (platform-detected):
   - Unix: `rm -rf`, `chmod 777`, `chmod -R 777`
   - Windows CMD: `del /s /q`, `rd /s /q`, `rmdir /s /q`, `format`, `diskpart`
-  - Windows PowerShell: `Remove-Item -Recurse -Force`, `Format-Volume`, `Clear-Disk` 
+  - Windows PowerShell: `Remove-Item -Recurse -Force`, `Format-Volume`, `Clear-Disk`
+
+### Troubleshooting: Claude CLI not found
+
+If you encounter errors like `spawn claude ENOENT` or `Claude CLI not found`, the plugin may not be able to auto-detect your Claude installation. This commonly happens with Node version managers (nvm, fnm, volta, nvm4w, etc.).
+
+**Solution**: Find your Claude CLI path and set it manually in Settings → Advanced → Claude CLI path.
+
+**macOS/Linux:**
+```bash
+which claude
+# Example output: /Users/you/.volta/bin/claude
+```
+
+**Windows (PowerShell):**
+```powershell
+where.exe claude
+# Example output: C:\Users\you\AppData\Roaming\npm\claude.cmd
+```
+
+**Windows (npm global install):**
+If `where claude` returns nothing, find the cli.js directly:
+```powershell
+npm root -g
+# Example: C:\Users\you\AppData\Roaming\npm\node_modules
+# Then use: C:\Users\you\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\cli.js
+```
+
+Copy the output path and paste it into **Settings → Advanced → Claude CLI path**.
+
+**Alternative**: Add your Node.js bin directory to the PATH environment variable in **Settings → Environment → Custom variables**:
+```
+PATH=/Users/you/.volta/bin
+```
+
+**Still having issues?** Please [open a GitHub issue](https://github.com/YishenTu/claudian/issues) with your platform, Claude CLI path (from `which`/`where` output), and the error message.
 
 ## Privacy & Data Use
 
