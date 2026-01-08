@@ -443,8 +443,8 @@ export class ClaudianSettingTab extends PluginSettingTab {
     const cliPlatformKey = getCliPlatformKey();
 
     const cliPathDescription = process.platform === 'win32'
-      ? t('settings.cliPath.desc') + ' For the native installer, use claude.exe. For npm/pnpm/yarn or other package manager installs, use the cli.js path (not claude.cmd).'
-      : t('settings.cliPath.desc') + ' Paste the output of "which claude" — works for both native and npm/pnpm/yarn installs.';
+      ? `${t('settings.cliPath.desc')} ${t('settings.cliPath.descWindows')}`
+      : `${t('settings.cliPath.desc')} ${t('settings.cliPath.descUnix')}`;
 
     const cliPathSetting = new Setting(containerEl)
       .setName(t('settings.cliPath.name'))

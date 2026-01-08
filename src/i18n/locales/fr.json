@@ -121,6 +121,8 @@
     "cliPath": {
       "name": "Chemin CLI Claude",
       "desc": "Chemin personnalisé vers Claude Code CLI. Laisser vide pour la détection automatique.",
+      "descWindows": "Pour l'installateur natif, utilisez claude.exe. Pour les installations npm/pnpm/yarn ou autres gestionnaires de paquets, utilisez le chemin cli.js (pas claude.cmd).",
+      "descUnix": "Collez la sortie de \"which claude\" — fonctionne pour les installations natives et npm/pnpm/yarn.",
       "validation": {
         "notExist": "Le chemin n'existe pas",
         "isDirectory": "Le chemin est un répertoire, pas un fichier"

@@ -107,6 +107,8 @@ export type TranslationKey =
   | 'settings.advanced'
   | 'settings.cliPath.name'
   | 'settings.cliPath.desc'
+  | 'settings.cliPath.descWindows'
+  | 'settings.cliPath.descUnix'
   | 'settings.cliPath.validation.notExist'
   | 'settings.cliPath.validation.isDirectory'
 
