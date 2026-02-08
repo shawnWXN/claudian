@@ -10,6 +10,7 @@ export class NavigationSidebar {
   private prevBtn: HTMLElement;
   private nextBtn: HTMLElement;
   private bottomBtn: HTMLElement;
+  private scrollHandler: () => void;
 
   constructor(
     private parentEl: HTMLElement,
@@ -36,9 +37,8 @@ export class NavigationSidebar {
 
   private setupEventListeners(): void {
     // Scroll handling to toggle visibility
-    this.messagesEl.addEventListener('scroll', () => {
-      this.updateVisibility();
-    }, { passive: true });
+    this.scrollHandler = () => this.updateVisibility();
+    this.messagesEl.addEventListener('scroll', this.scrollHandler, { passive: true });
 
     // Button clicks
     this.topBtn.addEventListener('click', () => {
@@ -98,6 +98,7 @@ export class NavigationSidebar {
   }
 
   destroy(): void {
+    this.messagesEl.removeEventListener('scroll', this.scrollHandler);
     this.container.remove();
   }
 }
