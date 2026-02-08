@@ -64,44 +64,36 @@ export class NavigationSidebar {
   }
 
   /**
-   * Scrolls to previous or next message (all messages, not just user).
+   * Scrolls to previous or next user message, skipping assistant messages.
    */
   private scrollToMessage(direction: 'prev' | 'next'): void {
-    const messages = Array.from(this.messagesEl.querySelectorAll('.claudian-message')) as HTMLElement[];
+    const messages = Array.from(this.messagesEl.querySelectorAll('.claudian-message-user')) as HTMLElement[];
 
     if (messages.length === 0) return;
 
     const scrollTop = this.messagesEl.scrollTop;
-    let currentIndex = -1;
-
-    // Find the first message at or below current scroll position
-    for (let i = 0; i < messages.length; i++) {
-      if (messages[i].offsetTop >= scrollTop - 10) {
-        currentIndex = i;
-        break;
-      }
-    }
-
-    let targetEl: HTMLElement | undefined;
+    const threshold = 30;
 
     if (direction === 'prev') {
-      if (currentIndex === -1) {
-        targetEl = messages[messages.length - 1];
-      } else if (currentIndex > 0) {
-        targetEl = messages[currentIndex - 1];
+      // Find the last message strictly above the current scroll position
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].offsetTop < scrollTop - threshold) {
+          this.messagesEl.scrollTo({ top: messages[i].offsetTop - 10, behavior: 'smooth' });
+          return;
+        }
       }
+      // Already at or above the first message — scroll to top
+      this.messagesEl.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      if (currentIndex !== -1 && currentIndex < messages.length - 1) {
-        targetEl = messages[currentIndex + 1];
-      } else if (currentIndex === messages.length - 1) {
-        // 已在最后一条消息，滚动到底部
-        this.messagesEl.scrollTo({ top: this.messagesEl.scrollHeight, behavior: 'smooth' });
-        return;
+      // Find the first message strictly below the current scroll position
+      for (let i = 0; i < messages.length; i++) {
+        if (messages[i].offsetTop > scrollTop + threshold) {
+          this.messagesEl.scrollTo({ top: messages[i].offsetTop - 10, behavior: 'smooth' });
+          return;
+        }
       }
-    }
-
-    if (targetEl) {
-      this.messagesEl.scrollTo({ top: targetEl.offsetTop - 10, behavior: 'smooth' });
+      // Already at or past the last message — scroll to bottom
+      this.messagesEl.scrollTo({ top: this.messagesEl.scrollHeight, behavior: 'smooth' });
     }
   }
 

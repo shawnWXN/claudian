@@ -64,6 +64,8 @@ class MockElement {
   private listeners: Record<string, Listener[]> = {};
   public scrollToCalls: Array<{ top: number; behavior: string }> = [];
 
+  offsetTop = 0;
+
   constructor(tagName: string) {
     this.tagName = tagName.toUpperCase();
   }
@@ -344,6 +346,157 @@ describe('NavigationSidebar', () => {
       expect(messagesEl.scrollToCalls.length).toBe(1);
       expect(messagesEl.scrollToCalls[0].top).toBe(1000);
       expect(messagesEl.scrollToCalls[0].behavior).toBe('smooth');
+    });
+  });
+
+  describe('previous/next message navigation', () => {
+    function addUserMessage(el: MockElement, offset: number): MockElement {
+      const msg = el.createDiv({ cls: 'claudian-message claudian-message-user' });
+      msg.offsetTop = offset;
+      return msg;
+    }
+
+    function addAssistantMessage(el: MockElement, offset: number): MockElement {
+      const msg = el.createDiv({ cls: 'claudian-message claudian-message-assistant' });
+      msg.offsetTop = offset;
+      return msg;
+    }
+
+    function addConversation(el: MockElement, userOffsets: number[], assistantOffsets: number[]): void {
+      // Interleave user and assistant messages in order
+      const all = [
+        ...userOffsets.map(o => ({ offset: o, role: 'user' as const })),
+        ...assistantOffsets.map(o => ({ offset: o, role: 'assistant' as const })),
+      ].sort((a, b) => a.offset - b.offset);
+      for (const m of all) {
+        if (m.role === 'user') addUserMessage(el, m.offset);
+        else addAssistantMessage(el, m.offset);
+      }
+    }
+
+    function getButtons(parent: MockElement) {
+      const container = parent.querySelector('.claudian-nav-sidebar')!;
+      return {
+        prev: container.children[1],
+        next: container.children[2],
+      };
+    }
+
+    it('should scroll to next user message below current scroll position', () => {
+      messagesEl.scrollHeight = 2000;
+      messagesEl.clientHeight = 500;
+      // user@0, assistant@100, user@400, assistant@500, user@800
+      addConversation(messagesEl, [0, 400, 800], [100, 500]);
+      messagesEl.scrollTop = 0;
+
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement
+      );
+
+      const { next } = getButtons(parentEl);
+      next.click();
+
+      const lastCall = messagesEl.scrollToCalls[messagesEl.scrollToCalls.length - 1];
+      // Should skip assistant@100 and go to user@400
+      expect(lastCall.top).toBe(390); // offsetTop(400) - 10
+      expect(lastCall.behavior).toBe('smooth');
+    });
+
+    it('should scroll to previous user message above current scroll position', () => {
+      messagesEl.scrollHeight = 2000;
+      messagesEl.clientHeight = 500;
+      addConversation(messagesEl, [0, 400, 800], [100, 500]);
+      messagesEl.scrollTop = 800;
+
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement
+      );
+
+      const { prev } = getButtons(parentEl);
+      prev.click();
+
+      const lastCall = messagesEl.scrollToCalls[messagesEl.scrollToCalls.length - 1];
+      // Should skip assistant@500 and go to user@400
+      expect(lastCall.top).toBe(390); // offsetTop(400) - 10
+      expect(lastCall.behavior).toBe('smooth');
+    });
+
+    it('should not require double-click when scrolled to a user message', () => {
+      messagesEl.scrollHeight = 2000;
+      messagesEl.clientHeight = 500;
+      addConversation(messagesEl, [0, 400, 800], [100, 500]);
+      // Scrolled to user message at offset 400 (scroll position = 390)
+      messagesEl.scrollTop = 390;
+
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement
+      );
+
+      const { next } = getButtons(parentEl);
+      next.click();
+
+      const lastCall = messagesEl.scrollToCalls[messagesEl.scrollToCalls.length - 1];
+      // Should go to user@800, not stay at user@400
+      expect(lastCall.top).toBe(790); // offsetTop(800) - 10
+    });
+
+    it('should not require double-click for prev when scrolled to a user message', () => {
+      messagesEl.scrollHeight = 2000;
+      messagesEl.clientHeight = 500;
+      addConversation(messagesEl, [0, 400, 800], [100, 500]);
+      // Scrolled to user message at offset 800
+      messagesEl.scrollTop = 790;
+
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement
+      );
+
+      const { prev } = getButtons(parentEl);
+      prev.click();
+
+      const lastCall = messagesEl.scrollToCalls[messagesEl.scrollToCalls.length - 1];
+      // Should go to user@400, not stay at user@800
+      expect(lastCall.top).toBe(390); // offsetTop(400) - 10
+    });
+
+    it('should scroll to bottom when at the last user message and next is clicked', () => {
+      messagesEl.scrollHeight = 2000;
+      messagesEl.clientHeight = 500;
+      addConversation(messagesEl, [0, 400, 800], [100, 500]);
+      messagesEl.scrollTop = 790;
+
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement
+      );
+
+      const { next } = getButtons(parentEl);
+      next.click();
+
+      const lastCall = messagesEl.scrollToCalls[messagesEl.scrollToCalls.length - 1];
+      expect(lastCall.top).toBe(2000);
+    });
+
+    it('should scroll to top when at the first user message and prev is clicked', () => {
+      messagesEl.scrollHeight = 2000;
+      messagesEl.clientHeight = 500;
+      addConversation(messagesEl, [0, 400, 800], [100, 500]);
+      messagesEl.scrollTop = 0;
+
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement
+      );
+
+      const { prev } = getButtons(parentEl);
+      prev.click();
+
+      const lastCall = messagesEl.scrollToCalls[messagesEl.scrollToCalls.length - 1];
+      expect(lastCall.top).toBe(0);
     });
   });
 
